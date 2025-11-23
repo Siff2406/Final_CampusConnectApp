@@ -1,24 +1,21 @@
-//
-//  ContentView.swift
-//  Final_CampusConnectApp
-//
-//  Created by Hasif Salika on 30/10/2568 BE.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var authService = AuthService.shared
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        Group {
+            if authService.userSession != nil {
+                MainTabView()
+            } else {
+                LoginView()
+            }
         }
-        .padding()
     }
 }
 
-#Preview {
-    ContentView()
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
 }
