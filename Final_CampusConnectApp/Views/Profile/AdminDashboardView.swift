@@ -4,62 +4,218 @@ struct AdminDashboardView: View {
     @StateObject private var viewModel = AdminDashboardViewModel()
     
     var body: some View {
-        List {
-            if viewModel.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-            } else if viewModel.pendingEvents.isEmpty {
-                Text("No pending events")
-                    .foregroundColor(.gray)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-            } else {
-                ForEach(viewModel.pendingEvents) { event in
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text(event.title)
+        ScrollView {
+            VStack(spacing: 24) {
+                // 1. Stats Row
+                HStack(spacing: 12) {
+                    StatCard(title: "Events Today", value: "\(viewModel.eventsTodayCount)", color: .blue)
+                    StatCard(title: "Active Posts", value: "\(viewModel.approvedEventsCount)", color: .green)
+                    StatCard(title: "Pending", value: "\(viewModel.pendingEvents.count)", color: .orange)
+                }
+                .padding(.horizontal)
+                
+                // 2. Pending Posts Section
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Pending Posts")
+                        .font(.headline)
+                        .padding(.horizontal)
+                    
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else if viewModel.pendingEvents.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle")
+                                .font(.largeTitle)
+                                .foregroundColor(.green)
+                            Text("All Caught Up!")
                                 .font(.headline)
-                            Spacer()
-                            Text(event.faculty.rawValue)
-                                .font(.caption2)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(4)
+                            Text("The pending posts queue is empty.")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
-                        
-                        Text(event.description)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                        
-                        HStack {
-                            Text(event.createBy) // In real app, show user name
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            
-                            Spacer()
-                            
-                            Button("Reject") {
-                                viewModel.updateStatus(event: event, status: .rejected)
-                            }
-                            .buttonStyle(BorderedButtonStyle())
-                            .tint(.red)
-                            
-                            Button("Approve") {
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
+                        .background(Color.gray.opacity(0.05))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                    } else {
+                        ForEach(viewModel.pendingEvents) { event in
+                            PendingEventCard(event: event, onApprove: {
                                 viewModel.updateStatus(event: event, status: .approved)
-                            }
-                            .buttonStyle(BorderedProminentButtonStyle())
-                            .tint(.green)
+                            }, onReject: {
+                                viewModel.updateStatus(event: event, status: .rejected)
+                            })
+                            .padding(.horizontal)
                         }
                     }
-                    .padding(.vertical, 8)
+                }
+                
+                // 3. Admin Tools
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Admin Tools")
+                        .font(.headline)
+                        .padding(.horizontal)
+                    
+                    VStack(spacing: 12) {
+                        AdminToolButton(title: "Ban a User", icon: "slash.circle", color: .orange)
+                        AdminToolButton(title: "Hide a Post", icon: "eye.slash", color: .gray)
+                        AdminToolButton(title: "Send Announcement", icon: "megaphone", color: .red)
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            .padding(.vertical)
+        }
+        .navigationTitle("Moderator Dashboard")
+        .navigationBarTitleDisplayMode(.inline)
+        .background(Color(.systemGroupedBackground))
+        .onAppear {
+            viewModel.fetchPendingEvents()
+        }
+    }
+}
+
+struct StatCard: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.title)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+    }
+}
+
+struct PendingEventCard: View {
+    let event: Event
+    let onApprove: () -> Void
+    let onReject: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header: User & Time
+            HStack {
+                Circle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                    .overlay(Image(systemName: "person.fill").foregroundColor(.gray))
+                
+                VStack(alignment: .leading) {
+                    Text("User ID: \(event.createBy.prefix(6))...") // Placeholder name
+                        .fontWeight(.semibold)
+                    Text(timeAgo(from: event.createdAt))
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                Spacer()
+                Text(event.category.rawValue)
+                    .font(.caption2)
+                    .padding(6)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+            }
+            
+            Divider()
+            
+            // Event Content
+            HStack(alignment: .top, spacing: 12) {
+                // Thumbnail
+                CachedAsyncImage(url: event.imageUrl) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color.gray.opacity(0.2)
+                }
+                .frame(width: 80, height: 80)
+                .cornerRadius(8)
+                .clipped()
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(event.title)
+                        .font(.headline)
+                        .lineLimit(2)
+                    
+                    Text(event.eventDate.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    
+                    Text(event.location)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Text(event.description)
+                .font(.body)
+                .foregroundColor(.secondary)
+                .lineLimit(3)
+            
+            // Action Buttons
+            HStack(spacing: 12) {
+                Button(action: onReject) {
+                    Text("Reject")
+                        .fontWeight(.semibold)
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(8)
+                }
+                
+                Button(action: onApprove) {
+                    Text("Approve")
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.green)
+                        .cornerRadius(8)
                 }
             }
         }
-        .navigationTitle("Admin Dashboard")
-        .onAppear {
-            viewModel.fetchPendingEvents()
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+    }
+    
+    private func timeAgo(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+struct AdminToolButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        Button(action: {}) {
+            HStack {
+                Image(systemName: icon)
+                Text(title)
+                Spacer()
+            }
+            .foregroundColor(.white)
+            .padding()
+            .background(color)
+            .cornerRadius(12)
         }
     }
 }

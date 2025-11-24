@@ -15,11 +15,11 @@ struct LoginView: View {
                 .foregroundColor(.red)
             
             VStack(spacing: 8) {
-                Text("SWU Connect")
+                Text("Campus Conncect")
                     .font(.largeTitle)
                     .fontWeight(.black)
                 
-                Text("Campus Events & News")
+                Text("SWU Campus Events & News")
                     .font(.title3)
                     .foregroundColor(.gray)
             }

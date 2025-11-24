@@ -1,16 +1,31 @@
 import Foundation
 import Combine
 import SwiftUI
+import PhotosUI
+import FirebaseAuth
 
 @MainActor
 class AddEventViewModel: ObservableObject {
     @Published var title: String = ""
     @Published var description: String = ""
     @Published var location: String = ""
-    @Published var imageUrl: String = ""
     @Published var eventDate: Date = Date()
     @Published var faculty: EventFaculty = .science
     @Published var category: EventCategory = .academic
+    
+    // Image Handling
+    @Published var selectedItem: PhotosPickerItem? = nil
+    @Published var selectedImage: UIImage? = nil
+    
+    func loadSelectedImage() {
+        guard let selectedItem = selectedItem else { return }
+        Task {
+            if let data = try? await selectedItem.loadTransferable(type: Data.self),
+               let uiImage = UIImage(data: data) {
+                self.selectedImage = uiImage
+            }
+        }
+    }
     
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -22,25 +37,37 @@ class AddEventViewModel: ObservableObject {
             return
         }
         
+        guard let user = AuthService.shared.userSession else {
+            errorMessage = "You must be logged in."
+            return
+        }
+        
         isLoading = true
         errorMessage = nil
         
-        let newEvent = Event(
-            id: UUID().uuidString,
-            title: title,
-            description: description,
-            imageUrl: imageUrl.isEmpty ? "https://via.placeholder.com/300" : imageUrl,
-            location: location,
-            eventDate: eventDate,
-            createBy: "current_user_id", // Placeholder for Auth
-            faculty: faculty,
-            category: category,
-            status: .pending,
-            createdAt: Date()
-        )
-        
         Task {
             do {
+                var finalImageUrl = "https://via.placeholder.com/400x200?text=No+Image" // Default
+                
+                // Upload Image if selected
+                if let image = selectedImage {
+                    finalImageUrl = try await FirebaseService.shared.uploadImage(image)
+                }
+                
+                let newEvent = Event(
+                    id: UUID().uuidString,
+                    title: title,
+                    description: description,
+                    imageUrl: finalImageUrl,
+                    location: location,
+                    eventDate: eventDate,
+                    createBy: user.uid,
+                    faculty: faculty,
+                    category: category,
+                    status: .pending,
+                    createdAt: Date()
+                )
+                
                 try await FirebaseService.shared.addEvent(newEvent)
                 isSuccess = true
             } catch {

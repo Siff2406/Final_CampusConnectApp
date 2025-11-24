@@ -51,7 +51,7 @@ struct ProfileView: View {
                             
                             // Post Event (Only for Verified or Admin)
                             if user.role == .verified || user.role == .admin {
-                                NavigationLink(destination: AddEventView()) { // Reusing AddEventView here if needed, or just keep it in Tab
+                                NavigationLink(destination: MyEventsView()) {
                                     Label("My Events", systemImage: "calendar")
                                 }
                             }

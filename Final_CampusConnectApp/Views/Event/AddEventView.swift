@@ -1,72 +1,158 @@
 import SwiftUI
+import PhotosUI
 
 struct AddEventView: View {
     @StateObject private var viewModel = AddEventViewModel()
     @Environment(\.dismiss) var dismiss
     
+    // UI State for Success Popup
+    @State private var showSuccessPopup = false
+    
     var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Event Details")) {
-                    TextField("Title", text: $viewModel.title)
-                    TextField("Description", text: $viewModel.description)
-                    TextField("Location", text: $viewModel.location)
-                    TextField("Image URL (Optional)", text: $viewModel.imageUrl)
-                }
-                
-                Section(header: Text("Date & Time")) {
-                    DatePicker("Event Date", selection: $viewModel.eventDate, displayedComponents: [.date, .hourAndMinute])
-                }
-                
-                Section(header: Text("Category & Faculty")) {
-                    Picker("Category", selection: $viewModel.category) {
-                        ForEach(EventCategory.allCases, id: \.self) { category in
-                            Text(category.rawValue).tag(category)
+        ZStack {
+            NavigationView {
+                Form {
+                    // Section 1: Basic Info
+                    Section(header: Text("Event Details")) {
+                        TextField("Event Title", text: $viewModel.title)
+                        
+                        Picker("Category", selection: $viewModel.category) {
+                            ForEach(EventCategory.allCases, id: \.self) { category in
+                                Text(category.rawValue).tag(category)
+                            }
+                        }
+                        
+                        Picker("Faculty", selection: $viewModel.faculty) {
+                            ForEach(EventFaculty.allCases, id: \.self) { faculty in
+                                Text(faculty.rawValue).tag(faculty)
+                            }
                         }
                     }
                     
-                    Picker("Faculty", selection: $viewModel.faculty) {
-                        ForEach(EventFaculty.allCases, id: \.self) { faculty in
-                            Text(faculty.rawValue).tag(faculty)
+                    // Section 2: Date & Location
+                    Section(header: Text("When & Where")) {
+                        DatePicker("Date & Time", selection: $viewModel.eventDate, displayedComponents: [.date, .hourAndMinute])
+                        
+                        TextField("Location", text: $viewModel.location)
+                    }
+                    
+                    // Section 3: Description
+                    Section(header: Text("Description")) {
+                        TextEditor(text: $viewModel.description)
+                            .frame(height: 100)
+                    }
+                    
+                    // Section 4: Image Upload
+                    Section(header: Text("Event Image")) {
+                        PhotosPicker(selection: $viewModel.selectedItem, matching: .images) {
+                            if let image = viewModel.selectedImage {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(height: 200)
+                                    .frame(maxWidth: .infinity)
+                                    .cornerRadius(10)
+                                    .clipped()
+                            } else {
+                                HStack {
+                                    Image(systemName: "photo.on.rectangle")
+                                    Text("Select Image")
+                                }
+                                .foregroundColor(.blue)
+                            }
                         }
                     }
-                }
-                
-                if let error = viewModel.errorMessage {
+                    
+                    // Section 5: Submit Button
                     Section {
-                        Text(error)
-                            .foregroundColor(.red)
+                        Button(action: {
+                            viewModel.submitEvent()
+                        }) {
+                            if viewModel.isLoading {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
+                                }
+                            } else {
+                                Text("Submit Event")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .listRowBackground(Color.red)
                     }
-                }
-                
-                Section {
-                    Button(action: {
-                        viewModel.submitEvent()
-                    }) {
-                        if viewModel.isLoading {
-                            ProgressView()
-                        } else {
-                            Text("Submit Event")
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .foregroundColor(.white)
+                    
+                    if let error = viewModel.errorMessage {
+                        Section {
+                            Text(error)
+                                .foregroundColor(.red)
                         }
                     }
-                    .listRowBackground(Color.red)
-                    .disabled(viewModel.isLoading)
                 }
-            }
-            .navigationTitle("New Event")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
+                .navigationTitle("Create Event")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                        .foregroundColor(.red)
                     }
                 }
             }
-            .onChange(of: viewModel.isSuccess) { success in
-                if success {
-                    dismiss()
+            .disabled(showSuccessPopup)
+            .blur(radius: showSuccessPopup ? 3 : 0)
+            
+            // Success Popup Overlay
+            if showSuccessPopup {
+                Color.black.opacity(0.4)
+                    .edgesIgnoringSafeArea(.all)
+                
+                VStack(spacing: 20) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.green)
+                    
+                    VStack(spacing: 8) {
+                        Text("Event Created!")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("Your event is now pending approval.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Text("Done")
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red)
+                            .cornerRadius(12)
+                    }
+                }
+                .padding(30)
+                .background(Color(.systemBackground))
+                .cornerRadius(20)
+                .shadow(radius: 20)
+                .padding(40)
+                .transition(.scale)
+            }
+        }
+        .onChange(of: viewModel.selectedItem) { _ in
+            viewModel.loadSelectedImage()
+        }
+        .onChange(of: viewModel.isSuccess) { _, success in
+            if success {
+                withAnimation {
+                    showSuccessPopup = true
                 }
             }
         }

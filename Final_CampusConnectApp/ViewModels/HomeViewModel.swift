@@ -4,20 +4,51 @@ import Combine
 @MainActor
 class HomeViewModel: ObservableObject {
     @Published var events: [Event] = []
+    @Published var filteredEvents: [Event] = []
+    @Published var searchText: String = ""
     @Published var isLoading = false
     @Published var errorMessage: String?
     
+    private var cancellables = Set<AnyCancellable>()
+    
+    init() {
+        $searchText
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+            .removeDuplicates()
+            .sink { [weak self] searchText in
+                self?.filterEvents(searchText: searchText)
+            }
+            .store(in: &cancellables)
+    }
+    
     func fetchEvents() {
         isLoading = true
-        errorMessage = nil
-        
         Task {
             do {
-                events = try await FirebaseService.shared.fetchApprovedEvents()
+                let fetchedEvents = try await FirebaseService.shared.fetchApprovedEvents()
+                await MainActor.run {
+                    self.events = fetchedEvents
+                    self.filterEvents(searchText: self.searchText)
+                    self.isLoading = false
+                }
             } catch {
-                errorMessage = error.localizedDescription
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                }
             }
-            isLoading = false
+        }
+    }
+    
+    private func filterEvents(searchText: String) {
+        if searchText.isEmpty {
+            filteredEvents = events
+        } else {
+            filteredEvents = events.filter { event in
+                event.title.localizedCaseInsensitiveContains(searchText) ||
+                event.description.localizedCaseInsensitiveContains(searchText) ||
+                event.location.localizedCaseInsensitiveContains(searchText)
+            }
         }
     }
 }
