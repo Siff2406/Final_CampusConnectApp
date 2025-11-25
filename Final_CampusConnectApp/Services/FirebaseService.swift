@@ -15,6 +15,16 @@ class FirebaseService: ObservableObject {
         settings.cacheSettings = PersistentCacheSettings()
         db.settings = settings
     }
+    // MARK: - Security & Privacy
+    
+    func clearCache() async {
+        do {
+            try await db.clearPersistence()
+            print("DEBUG: Firestore cache cleared successfully")
+        } catch {
+            print("DEBUG: Failed to clear Firestore cache: \(error)")
+        }
+    }
     
     // MARK: - Events
     
@@ -73,6 +83,10 @@ class FirebaseService: ObservableObject {
         try await db.collection("events").document(eventId).updateData([
             "status": status.rawValue
         ])
+    }
+    
+    func deleteEvent(eventId: String) async throws {
+        try await db.collection("events").document(eventId).delete()
     }
     
     // MARK: - Notifications

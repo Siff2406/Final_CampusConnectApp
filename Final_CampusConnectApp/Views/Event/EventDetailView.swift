@@ -8,6 +8,7 @@ struct EventDetailView: View {
     @State private var isJoined = false
     @State private var showJoinSheet = false
     @State private var isLoadingStatus = true
+    @State private var showDeleteAlert = false // For delete confirmation
     
     var body: some View {
         ZStack(alignment: .topLeading) { // Change alignment to topLeading
@@ -18,14 +19,16 @@ struct EventDetailView: View {
                     CachedAsyncImage(url: event.imageUrl) { image in
                         image
                             .resizable()
-                            .aspectRatio(contentMode: .fill)
+                            .aspectRatio(contentMode: .fill) // Force fill
+                            .frame(maxWidth: UIScreen.main.bounds.width) // Match screen width exactly
+                            .frame(height: 300)
+                            .clipped() // Crop excess
                     } placeholder: {
                         Rectangle()
                             .fill(Color.gray.opacity(0.2))
                             .frame(height: 300)
                     }
-                    .frame(height: 300)
-                    .clipped()
+                    .frame(height: 300) // Container height
                     .overlay(
                         LinearGradient(gradient: Gradient(colors: [.black.opacity(0.6), .clear]), startPoint: .top, endPoint: .bottom)
                     )
@@ -96,14 +99,30 @@ struct EventDetailView: View {
             .edgesIgnoringSafeArea(.top)
             
             // 2. Fixed Back Button
-            Button(action: { dismiss() }) {
-                Image(systemName: "arrow.left")
-                    .foregroundColor(.white)
-                    .padding(12)
-                    .background(Color.black.opacity(0.5))
-                    .clipShape(Circle())
+            // 2. Fixed Back Button & Admin Delete Button
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "arrow.left")
+                        .foregroundColor(.white)
+                        .padding(12)
+                        .background(Color.black.opacity(0.5))
+                        .clipShape(Circle())
+                }
+                
+                Spacer()
+                
+                // Show Delete Button only for Admin
+                if AuthService.shared.currentUser?.role == .admin {
+                    Button(action: { showDeleteAlert = true }) {
+                        Image(systemName: "trash.fill")
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .background(Color.red.opacity(0.8))
+                            .clipShape(Circle())
+                    }
+                }
             }
-            .padding(.leading, 20)
+            .padding(.horizontal, 20)
             // Removed top padding to align with safe area
             
             // 3. Bottom Action Bar (Fixed at bottom)
@@ -149,6 +168,14 @@ struct EventDetailView: View {
                 isJoined = true
             }
         }
+        .alert("Delete Event", isPresented: $showDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteEvent()
+            }
+        } message: {
+            Text("Are you sure you want to delete this event? This action cannot be undone.")
+        }
         .onAppear {
             checkJoinStatus()
         }
@@ -163,6 +190,17 @@ struct EventDetailView: View {
                 print("Error checking join status: \(error)")
             }
             isLoadingStatus = false
+        }
+    }
+    
+    private func deleteEvent() {
+        Task {
+            do {
+                try await FirebaseService.shared.deleteEvent(eventId: event.id)
+                dismiss()
+            } catch {
+                print("Error deleting event: \(error)")
+            }
         }
     }
 }

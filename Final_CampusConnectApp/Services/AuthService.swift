@@ -63,6 +63,7 @@ class AuthService: ObservableObject {
     func signOut() {
         do {
             try Auth.auth().signOut()
+            GIDSignIn.sharedInstance.signOut() // Ensure Google Sign In is also signed out
             self.userSession = nil
             self.currentUser = nil
         } catch {

@@ -1,5 +1,5 @@
 import SwiftUI
-import PhotosUI
+
 
 struct AddEventView: View {
     @StateObject private var viewModel = AddEventViewModel()
@@ -31,7 +31,7 @@ struct AddEventView: View {
                     
                     // Section 2: Date & Location
                     Section(header: Text("When & Where")) {
-                        DatePicker("Date & Time", selection: $viewModel.eventDate, displayedComponents: [.date, .hourAndMinute])
+                        DatePicker("Date & Time", selection: $viewModel.date, displayedComponents: [.date, .hourAndMinute])
                         
                         TextField("Location", text: $viewModel.location)
                     }
@@ -44,29 +44,38 @@ struct AddEventView: View {
                     
                     // Section 4: Image Upload
                     Section(header: Text("Event Image")) {
-                        PhotosPicker(selection: $viewModel.selectedItem, matching: .images) {
-                            if let image = viewModel.selectedImage {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(height: 200)
-                                    .frame(maxWidth: .infinity)
-                                    .cornerRadius(10)
-                                    .clipped()
-                            } else {
-                                HStack {
-                                    Image(systemName: "photo.on.rectangle")
-                                    Text("Select Image")
+                        TextField("Image URL (e.g., https://example.com/image.jpg)", text: $viewModel.imageUrlString)
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
+                        
+                        if !viewModel.imageUrlString.isEmpty, let url = URL(string: viewModel.imageUrlString) {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(height: 200)
+                                        .cornerRadius(8)
+                                        .clipped()
+                                case .failure:
+                                    Text("Invalid URL or Image not found")
+                                        .foregroundColor(.red)
+                                        .font(.caption)
+                                @unknown default:
+                                    EmptyView()
                                 }
-                                .foregroundColor(.blue)
                             }
+                            .frame(height: 200)
                         }
                     }
                     
                     // Section 5: Submit Button
                     Section {
                         Button(action: {
-                            viewModel.submitEvent()
+                            viewModel.createEvent()
                         }) {
                             if viewModel.isLoading {
                                 HStack {
@@ -145,9 +154,6 @@ struct AddEventView: View {
                 .padding(40)
                 .transition(.scale)
             }
-        }
-        .onChange(of: viewModel.selectedItem) { _ in
-            viewModel.loadSelectedImage()
         }
         .onChange(of: viewModel.isSuccess) { _, success in
             if success {

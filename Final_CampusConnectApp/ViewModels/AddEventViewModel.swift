@@ -9,36 +9,18 @@ class AddEventViewModel: ObservableObject {
     @Published var title: String = ""
     @Published var description: String = ""
     @Published var location: String = ""
-    @Published var eventDate: Date = Date()
-    @Published var faculty: EventFaculty = .science
+    @Published var date: Date = Date()
+    @Published var faculty: EventFaculty = .science // Added back
     @Published var category: EventCategory = .academic
-    
-    // Image Handling
-    @Published var selectedItem: PhotosPickerItem? = nil
-    @Published var selectedImage: UIImage? = nil
-    
-    func loadSelectedImage() {
-        guard let selectedItem = selectedItem else { return }
-        Task {
-            if let data = try? await selectedItem.loadTransferable(type: Data.self),
-               let uiImage = UIImage(data: data) {
-                self.selectedImage = uiImage
-            }
-        }
-    }
+    @Published var imageUrlString = ""
     
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var isSuccess = false
     
-    func submitEvent() {
-        guard !title.isEmpty, !description.isEmpty, !location.isEmpty else {
-            errorMessage = "Please fill in all required fields."
-            return
-        }
-        
-        guard let user = AuthService.shared.userSession else {
-            errorMessage = "You must be logged in."
+    func createEvent() {
+        guard let userId = AuthService.shared.userSession?.uid else {
+            errorMessage = "Please login first"
             return
         }
         
@@ -47,33 +29,35 @@ class AddEventViewModel: ObservableObject {
         
         Task {
             do {
-                var finalImageUrl = "https://via.placeholder.com/400x200?text=No+Image" // Default
+                // Use provided URL or a default placeholder if empty
+                let finalImageUrl = imageUrlString.isEmpty ? "https://via.placeholder.com/300" : imageUrlString
                 
-                // Upload Image if selected
-                if let image = selectedImage {
-                    finalImageUrl = try await FirebaseService.shared.uploadImage(image)
-                }
-                
-                let newEvent = Event(
+                let event = Event(
                     id: UUID().uuidString,
                     title: title,
                     description: description,
-                    imageUrl: finalImageUrl,
+                    imageUrl: finalImageUrl, // Pass String directly
                     location: location,
-                    eventDate: eventDate,
-                    createBy: user.uid,
-                    faculty: faculty,
+                    eventDate: date,
+                    createBy: userId,
+                    faculty: faculty, // Added back
                     category: category,
                     status: .pending,
                     createdAt: Date()
                 )
                 
-                try await FirebaseService.shared.addEvent(newEvent)
-                isSuccess = true
+                try await FirebaseService.shared.addEvent(event)
+                
+                await MainActor.run {
+                    isLoading = false
+                    isSuccess = true
+                }
             } catch {
-                errorMessage = error.localizedDescription
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = error.localizedDescription
+                }
             }
-            isLoading = false
         }
     }
 }
