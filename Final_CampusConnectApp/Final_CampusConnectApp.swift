@@ -16,7 +16,7 @@ struct Final_CampusConnectAppApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LandingView()
         }
     }
 }
