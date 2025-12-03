@@ -1,13 +1,16 @@
 import SwiftUI
 
 extension Color {
-    static let swuRed = Color(hex: "#BE1E2D")
-    static let swuSurface = Color(hex: "#F5F5F5")
+    // MARK: - SWU Official Colors
+    static let swuRed = Color(red: 218/255, green: 33/255, blue: 40/255) // Pantone 3546 C
+    static let swuGrey = Color(red: 99/255, green: 100/255, blue: 102/255) // Pantone 7547 UP
+    
+    // MARK: - Semantic Colors
+    static let swuBackground = Color(hex: "#F9F9F9") // Slightly off-white for background
     static let swuTextPrimary = Color(hex: "#333333")
     static let swuTextSecondary = Color(hex: "#828282")
-}
-
-extension Color {
+    
+    // MARK: - Initializer
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0

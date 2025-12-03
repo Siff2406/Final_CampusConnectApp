@@ -11,11 +11,13 @@ struct User: Identifiable, Codable {
     let email: String
     let role: UserRole
     let displayName: String
+    var profileImageUrl: String? // Added profileImageUrl
     
     enum CodingKeys: String, CodingKey {
         case id
         case email
         case role
         case displayName
+        case profileImageUrl
     }
 }

@@ -12,9 +12,9 @@ struct NotificationsView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "bell.slash")
                         .font(.largeTitle)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
                     Text("No notifications yet")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 50)
@@ -28,7 +28,7 @@ struct NotificationsView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Today")
                                 .font(.headline)
-                                .foregroundColor(.gray)
+                                .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
                                 .padding(.horizontal)
                             
                             ForEach(today) { notification in
@@ -41,7 +41,7 @@ struct NotificationsView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Earlier")
                                 .font(.headline)
-                                .foregroundColor(.gray)
+                                .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
                                 .padding(.horizontal)
                             
                             ForEach(earlier) { notification in
@@ -57,6 +57,9 @@ struct NotificationsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
         .onAppear {
+            viewModel.fetchNotifications()
+        }
+        .refreshable {
             viewModel.fetchNotifications()
         }
     }
@@ -82,17 +85,17 @@ struct NotificationRow: View {
                 Text(notification.title)
                     .font(.subheadline)
                     .fontWeight(notification.isRead ? .regular : .semibold)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.swuTextPrimary) // Changed to swuTextPrimary
                     .lineLimit(2)
                 
                 Text(notification.message)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
                     .lineLimit(2)
                 
                 Text(timeAgo(from: notification.createdAt))
                     .font(.caption2)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
             }
             
             Spacer()
@@ -100,7 +103,7 @@ struct NotificationRow: View {
             // Unread Dot
             if !notification.isRead {
                 Circle()
-                    .fill(Color.red)
+                    .fill(Color.swuRed) // Changed to swuRed
                     .frame(width: 8, height: 8)
                     .padding(.top, 8)
             }
@@ -124,7 +127,7 @@ struct NotificationRow: View {
     var iconColor: Color {
         switch notification.type {
         case .success: return .green
-        case .error: return .red
+        case .error: return .swuRed // Changed to swuRed
         case .warning: return .orange
         case .info: return .blue
         }

@@ -13,7 +13,7 @@ class MyEventsViewModel: ObservableObject {
         isLoading = true
         Task {
             do {
-                events = try await FirebaseService.shared.fetchUserEvents(userId: userId)
+                events = try await FirebaseService.shared.fetchJoinedEvents(userId: userId)
             } catch {
                 print("Error fetching my events: \(error.localizedDescription)")
             }

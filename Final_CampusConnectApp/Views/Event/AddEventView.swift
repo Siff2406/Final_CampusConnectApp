@@ -62,7 +62,7 @@ struct AddEventView: View {
                                         .clipped()
                                 case .failure:
                                     Text("Invalid URL or Image not found")
-                                        .foregroundColor(.red)
+                                        .foregroundColor(.swuRed) // Changed to swuRed
                                         .font(.caption)
                                 @unknown default:
                                     EmptyView()
@@ -90,13 +90,13 @@ struct AddEventView: View {
                                     .frame(maxWidth: .infinity)
                             }
                         }
-                        .listRowBackground(Color.red)
+                        .listRowBackground(Color.swuRed) // Changed to swuRed
                     }
                     
                     if let error = viewModel.errorMessage {
                         Section {
                             Text(error)
-                                .foregroundColor(.red)
+                                .foregroundColor(.swuRed) // Changed to swuRed
                         }
                     }
                 }
@@ -107,7 +107,7 @@ struct AddEventView: View {
                         Button("Cancel") {
                             dismiss()
                         }
-                        .foregroundColor(.red)
+                        .foregroundColor(.swuRed) // Changed to swuRed
                     }
                 }
             }
@@ -143,7 +143,7 @@ struct AddEventView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.red)
+                            .background(Color.swuRed) // Changed to swuRed
                             .cornerRadius(12)
                     }
                 }

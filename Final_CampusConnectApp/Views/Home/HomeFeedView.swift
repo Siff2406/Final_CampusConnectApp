@@ -11,19 +11,19 @@ struct HomeFeedView: View {
                     Text("Campus Connect")
                         .font(.title)
                         .fontWeight(.black)
-                        .foregroundColor(.red)
+                        .foregroundColor(.swuRed) // Changed to swuRed
                     
                     Spacer()
                     
                     NavigationLink(destination: NotificationsView()) {
                         Image(systemName: "bell.badge")
                             .font(.title3)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.swuTextPrimary) // Changed to swuTextPrimary
                     }
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 8)
-                .background(Color(.systemBackground))
+                .background(Color.swuBackground) // Changed to swuBackground
                 
                 // Scrollable Content
                 ScrollView {
@@ -53,17 +53,18 @@ struct HomeFeedView: View {
                                 .foregroundColor(.red)
                                 .padding()
                         } else {
-                            // Featured Events (Horizontal Scroll) - Only show if not searching
+                            // Latest Events (Horizontal Scroll) - Only show if not searching
                             if viewModel.searchText.isEmpty {
                                 VStack(alignment: .leading, spacing: 16) {
-                                    Text("Featured Events")
+                                    Text("Latest Events")
                                         .font(.title3)
                                         .fontWeight(.bold)
                                         .padding(.horizontal)
                                     
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(spacing: 16) {
-                                            ForEach(viewModel.events.prefix(3)) { event in
+                                            // Filter for upcoming events only
+                                            ForEach(viewModel.events.filter { $0.eventDate >= Date() }.sorted(by: { $0.createdAt > $1.createdAt }).prefix(3)) { event in
                                                 NavigationLink(destination: EventDetailView(event: event)) {
                                                     FeaturedEventCard(event: event)
                                                 }
@@ -95,9 +96,14 @@ struct HomeFeedView: View {
                         }
                     }
                     .padding(.vertical)
+                    .padding(.bottom, 80) // Clear floating tab bar
+                }
+                .refreshable {
+                    viewModel.fetchEvents()
                 }
             }
             .navigationBarHidden(true)
+            .background(Color.swuBackground) // Set background color
             .onAppear {
                 viewModel.fetchEvents()
             }
@@ -128,7 +134,7 @@ struct FeaturedEventCard: View {
                     .fontWeight(.bold)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.red)
+                    .background(Color.swuRed) // Changed to swuRed
                     .foregroundColor(.white)
                     .cornerRadius(4)
                 
@@ -142,5 +148,6 @@ struct FeaturedEventCard: View {
         }
         .frame(width: 280, height: 180)
         .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }

@@ -20,9 +20,8 @@ class FirebaseService: ObservableObject {
     func clearCache() async {
         do {
             try await db.clearPersistence()
-            print("DEBUG: Firestore cache cleared successfully")
         } catch {
-            print("DEBUG: Failed to clear Firestore cache: \(error)")
+            // Handle error silently
         }
     }
     
@@ -32,6 +31,7 @@ class FirebaseService: ObservableObject {
         let snapshot = try await db.collection("events")
             .whereField("status", isEqualTo: EventStatus.approved.rawValue)
             .order(by: "eventDate", descending: false)
+            .limit(to: 50) // Limit to save costs
             .getDocuments()
         
         return snapshot.documents.compactMap { document in
@@ -43,6 +43,7 @@ class FirebaseService: ObservableObject {
         let snapshot = try await db.collection("events")
             .whereField("status", isEqualTo: EventStatus.pending.rawValue)
             .order(by: "createdAt", descending: true)
+            .limit(to: 50) // Limit to save costs
             .getDocuments()
         
         return snapshot.documents.compactMap { document in
@@ -59,6 +60,30 @@ class FirebaseService: ObservableObject {
         return snapshot.documents.compactMap { document in
             try? document.data(as: Event.self)
         }
+    }
+    
+    func fetchJoinedEvents(userId: String) async throws -> [Event] {
+        // 1. Find all participant documents for this user across all events
+        // Note: This requires a Collection Group Index on 'participants' collection for field 'userId'
+        let snapshot = try await db.collectionGroup("participants")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments()
+        
+        var events: [Event] = []
+        
+        // 2. Get the parent Event document for each participation
+        for doc in snapshot.documents {
+            // The parent of 'participants' collection is the 'events' document
+            if let eventRef = doc.reference.parent.parent {
+                let eventDoc = try await eventRef.getDocument()
+                if let event = try? eventDoc.data(as: Event.self) {
+                    events.append(event)
+                }
+            }
+        }
+        
+        // Sort by date (newest first)
+        return events.sorted(by: { $0.eventDate > $1.eventDate })
     }
     
     func addEvent(_ event: Event) async throws {
@@ -95,6 +120,7 @@ class FirebaseService: ObservableObject {
         let snapshot = try await db.collection("notifications")
             .whereField("userId", isEqualTo: userId)
             .order(by: "createdAt", descending: true)
+            .limit(to: 20) // Limit to save costs
             .getDocuments()
         
         return snapshot.documents.compactMap { document in
@@ -161,5 +187,36 @@ class FirebaseService: ObservableObject {
     
     func saveUser(_ user: User) async throws {
         try db.collection("users").document(user.id).setData(from: user)
+    }
+    
+    func getDemoUserCount(role: UserRole) async throws -> Int {
+        let prefix = role == .admin ? "admin@demo" : "student@demo"
+        // Note: This is a simple count for demo purposes. 
+        // In production with millions of users, use aggregation queries.
+        let snapshot = try await db.collection("users")
+            .whereField("email", isGreaterThanOrEqualTo: prefix)
+            .whereField("email", isLessThan: prefix + "\u{f8ff}")
+            .getDocuments()
+        return snapshot.count
+    }
+    
+    // MARK: - Report & Block
+    func reportPost(postId: String, reason: String) async throws {
+        let reportData: [String: Any] = [
+            "postId": postId,
+            "reason": reason,
+            "reportedBy": Auth.auth().currentUser?.uid ?? "unknown",
+            "createdAt": Timestamp(date: Date())
+        ]
+        try await db.collection("reports").addDocument(data: reportData)
+    }
+    
+    func blockUser(userIdToBlock: String) async throws {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        // Add to 'blockedUsers' subcollection of current user
+        try await db.collection("users").document(currentUserId).collection("blockedUsers").document(userIdToBlock).setData([
+            "blockedAt": Timestamp(date: Date())
+        ])
     }
 }

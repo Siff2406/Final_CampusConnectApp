@@ -85,7 +85,7 @@ struct StatCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
             Text(value)
                 .font(.title)
                 .fontWeight(.bold)
@@ -109,16 +109,16 @@ struct PendingEventCard: View {
             // Header: User & Time
             HStack {
                 Circle()
-                    .fill(Color.gray.opacity(0.2))
+                    .fill(Color.swuGrey.opacity(0.2)) // Changed to swuGrey
                     .frame(width: 40, height: 40)
-                    .overlay(Image(systemName: "person.fill").foregroundColor(.gray))
+                    .overlay(Image(systemName: "person.fill").foregroundColor(.swuGrey)) // Changed to swuGrey
                 
                 VStack(alignment: .leading) {
                     Text("User ID: \(event.createBy.prefix(6))...") // Placeholder name
                         .fontWeight(.semibold)
                     Text(timeAgo(from: event.createdAt))
                         .font(.caption)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
                 }
                 Spacer()
                 Text(event.category.rawValue)
@@ -151,7 +151,7 @@ struct PendingEventCard: View {
                     
                     Text(event.eventDate.formatted(date: .abbreviated, time: .shortened))
                         .font(.caption)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.swuRed) // Changed to swuRed
                     
                     Text(event.location)
                         .font(.caption)
@@ -169,10 +169,10 @@ struct PendingEventCard: View {
                 Button(action: onReject) {
                     Text("Reject")
                         .fontWeight(.semibold)
-                        .foregroundColor(.red)
+                        .foregroundColor(.swuRed) // Changed to swuRed
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .background(Color.red.opacity(0.1))
+                        .background(Color.swuRed.opacity(0.1)) // Changed to swuRed
                         .cornerRadius(8)
                 }
                 

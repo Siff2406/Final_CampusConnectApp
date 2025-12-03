@@ -9,26 +9,34 @@ struct EventDetailView: View {
     @State private var showJoinSheet = false
     @State private var isLoadingStatus = true
     @State private var showDeleteAlert = false // For delete confirmation
+    @State private var showGuestAlert = false // For guest alert
+    
+    // Calendar Alert States
+    @State private var showCalendarAlert = false
+    @State private var calendarAlertMessage = ""
+    @State private var calendarAlertTitle = ""
+    @State private var showTicket = false
     
     var body: some View {
-        ZStack(alignment: .topLeading) { // Change alignment to topLeading
+        VStack(spacing: 0) {
             // 1. Scrollable Content
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     // Header Image
-                    CachedAsyncImage(url: event.imageUrl) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill) // Force fill
-                            .frame(maxWidth: UIScreen.main.bounds.width) // Match screen width exactly
-                            .frame(height: 300)
-                            .clipped() // Crop excess
-                    } placeholder: {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 300)
+                    GeometryReader { geometry in
+                        CachedAsyncImage(url: event.imageUrl) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: geometry.size.width, height: 300)
+                                .clipped()
+                        } placeholder: {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(width: geometry.size.width, height: 300)
+                        }
                     }
-                    .frame(height: 300) // Container height
+                    .frame(height: 300)
                     .overlay(
                         LinearGradient(gradient: Gradient(colors: [.black.opacity(0.6), .clear]), startPoint: .top, endPoint: .bottom)
                     )
@@ -40,10 +48,10 @@ struct EventDetailView: View {
                             Text(event.category.rawValue)
                                 .font(.caption)
                                 .fontWeight(.bold)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.swuRed) // Changed to swuRed
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
-                                .background(Color.blue.opacity(0.1))
+                                .background(Color.swuRed.opacity(0.1)) // Changed to swuRed opacity
                                 .cornerRadius(8)
                             
                             Text(event.title)
@@ -54,7 +62,16 @@ struct EventDetailView: View {
                         // Info Rows
                         VStack(spacing: 16) {
                             InfoRow(icon: "calendar", title: "Date & Time", subtitle: event.eventDate.formatted(date: .abbreviated, time: .shortened))
-                            InfoRow(icon: "mappin.and.ellipse", title: "Location", subtitle: event.location)
+                            
+                            Button(action: {
+                                let query = event.location.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+                                if let url = URL(string: "http://maps.apple.com/?q=\(query)") {
+                                    UIApplication.shared.open(url)
+                                }
+                            }) {
+                                InfoRow(icon: "mappin.and.ellipse", title: "Location", subtitle: event.location)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                         
                         Divider()
@@ -88,7 +105,7 @@ struct EventDetailView: View {
                         }
                         
                         // Padding for bottom bar
-                        Color.clear.frame(height: 80)
+                        Color.clear.frame(height: 20)
                     }
                     .padding(24)
                     .background(Color.white)
@@ -98,8 +115,56 @@ struct EventDetailView: View {
             }
             .edgesIgnoringSafeArea(.top)
             
-            // 2. Fixed Back Button
-            // 2. Fixed Back Button & Admin Delete Button
+            // 3. Bottom Action Bar (Fixed at bottom)
+            VStack {
+                Divider()
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text("Price")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Free")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(.green)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        if event.eventDate < Date() {
+                            // Do nothing
+                        } else if AuthService.shared.isGuest {
+                            showGuestAlert = true
+                        } else if isJoined {
+                            showTicket = true
+                        } else {
+                            showJoinSheet = true
+                        }
+                    }) {
+                        Text(event.eventDate < Date() ? "Event Ended" : (isJoined ? "View Ticket" : "Join Event"))
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(width: 160, height: 50)
+                            .background(event.eventDate < Date() ? Color.gray : (isJoined ? Color.swuGrey : Color.swuRed))
+                            .cornerRadius(16)
+                            .shadow(color: (event.eventDate < Date() ? Color.gray : (isJoined ? Color.swuGrey : Color.swuRed)).opacity(0.3), radius: 10, x: 0, y: 5)
+                    }
+                    .disabled(isLoadingStatus && !AuthService.shared.isGuest || event.eventDate < Date())
+                    .alert("Sign In Required", isPresented: $showGuestAlert) {
+                        Button("OK", role: .cancel) { }
+                    } message: {
+                        Text("Please sign in with your SWU email to join events.")
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .padding(.bottom, 60) // Add padding to clear floating tab bar
+                .background(Color.white)
+            }
+        }
+        .overlay(
+            // 2. Fixed Back Button & Admin Buttons (Overlay on top)
             HStack {
                 Button(action: { dismiss() }) {
                     Image(systemName: "arrow.left")
@@ -121,51 +186,45 @@ struct EventDetailView: View {
                             .clipShape(Circle())
                     }
                 }
+                
+                // Add to Calendar Button
+                Button(action: { addToCalendar() }) {
+                    Image(systemName: "calendar.badge.plus")
+                        .foregroundColor(.white)
+                        .padding(12)
+                        .background(Color.swuGrey.opacity(0.9)) // Changed to swuGrey
+                        .clipShape(Circle())
+                }
+                
+                // Share Button (New)
+                Button(action: {
+                    // Use a dummy UIView for fallback sharing context
+                    let dummyView = UIView()
+                    SocialShareManager.shared.shareEventToInstagramStory(event: event, view: dummyView)
+                }) {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(.white)
+                        .padding(12)
+                        .background(Color.swuGrey.opacity(0.9)) // Changed to swuGrey
+                        .clipShape(Circle())
+                }
             }
             .padding(.horizontal, 20)
-            // Removed top padding to align with safe area
-            
-            // 3. Bottom Action Bar (Fixed at bottom)
-            VStack {
-                Spacer()
-                Divider()
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Price")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("Free")
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundColor(.green)
-                    }
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        if !isJoined {
-                            showJoinSheet = true
-                        }
-                    }) {
-                        Text(isJoined ? "Joined" : "Join Event")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(width: 160, height: 50)
-                            .background(isJoined ? Color.green : Color.blue)
-                            .cornerRadius(16)
-                            .shadow(color: (isJoined ? Color.green : Color.blue).opacity(0.3), radius: 10, x: 0, y: 5)
-                    }
-                    .disabled(isJoined || isLoadingStatus)
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-                .background(Color.white)
-            }
-        }
+            .padding(.top, 60) // Fixed padding to clear Dynamic Island
+            , alignment: .top
+        )
         .navigationBarHidden(true)
+        .edgesIgnoringSafeArea(.top)
         .sheet(isPresented: $showJoinSheet) {
             JoinEventView(event: event) {
                 isJoined = true
+            }
+        }
+        .sheet(isPresented: $showTicket) {
+            if let user = AuthService.shared.currentUser {
+                TicketView(event: event, user: user)
+            } else {
+                Text("Error: User not found")
             }
         }
         .alert("Delete Event", isPresented: $showDeleteAlert) {
@@ -176,12 +235,22 @@ struct EventDetailView: View {
         } message: {
             Text("Are you sure you want to delete this event? This action cannot be undone.")
         }
+        .alert(calendarAlertTitle, isPresented: $showCalendarAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(calendarAlertMessage)
+        }
         .onAppear {
             checkJoinStatus()
         }
     }
     
     private func checkJoinStatus() {
+        if AuthService.shared.isGuest {
+            isLoadingStatus = false
+            return
+        }
+        
         guard let userId = AuthService.shared.userSession?.uid else { return }
         Task {
             do {
@@ -203,7 +272,28 @@ struct EventDetailView: View {
             }
         }
     }
+    
+    private func addToCalendar() {
+        CalendarManager.shared.addEventToCalendar(
+            title: event.title,
+            description: event.description,
+            location: event.location,
+            startDate: event.eventDate
+        ) { result in
+            switch result {
+            case .success:
+                calendarAlertTitle = "Success"
+                calendarAlertMessage = "Event added to your calendar!"
+            case .failure(let error):
+                calendarAlertTitle = "Error"
+                calendarAlertMessage = error.localizedDescription
+            }
+            showCalendarAlert = true
+        }
+    }
 }
+
+// ... (InfoRow struct remains same) ...
 
 struct InfoRow: View {
     let icon: String
@@ -214,9 +304,9 @@ struct InfoRow: View {
         HStack(spacing: 16) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(.blue)
+                .foregroundColor(.swuRed) // Changed to swuRed
                 .frame(width: 40, height: 40)
-                .background(Color.blue.opacity(0.1))
+                .background(Color.swuRed.opacity(0.1)) // Changed to swuRed opacity
                 .cornerRadius(10)
             
             VStack(alignment: .leading) {

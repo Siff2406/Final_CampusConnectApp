@@ -11,11 +11,59 @@ class AuthService: ObservableObject {
     @Published var userSession: FirebaseAuth.User?
     @Published var currentUser: User?
     @Published var errorMessage: String?
+    @Published var isGuest: Bool = false
+    
+    private var cancellables = Set<AnyCancellable>()
     
     private init() {
+        setupSessionListener()
+    }
+    
+    private func setupSessionListener() {
         self.userSession = Auth.auth().currentUser
         Task {
             await fetchUser()
+        }
+    }
+    
+    func signInAsGuest() {
+        isGuest = true
+    }
+    
+    // MARK: - Demo Login (For Presentation)
+    func signInAsDemoUser(role: UserRole) async {
+        do {
+            // 1. Sign in anonymously to get a real UID
+            let result = try await Auth.auth().signInAnonymously()
+            let uid = result.user.uid
+            
+            // 2. Create Demo User Data
+            let count = (try? await FirebaseService.shared.getDemoUserCount(role: role)) ?? 0
+            let nextNum = count + 1
+            
+            let demoEmail = role == .admin ? "admin@demo.swu.ac.th" : "student@demo.swu.ac.th"
+            let baseName = role == .admin ? "Demo Admin" : "Demo Student"
+            let displayName = "\(baseName) #\(nextNum)"
+            
+            let demoUser = User(
+                id: uid,
+                email: demoEmail,
+                role: role,
+                displayName: displayName,
+                profileImageUrl: nil
+            )
+            
+            // 3. Save to Firestore (Real Data)
+            try await FirebaseService.shared.saveUser(demoUser)
+            
+            // 4. Update Session
+            self.userSession = result.user
+            self.currentUser = demoUser
+            self.isGuest = false
+            
+        } catch {
+            print("Error signing in as demo user: \(error.localizedDescription)")
+            self.errorMessage = "Demo login failed: \(error.localizedDescription)"
         }
     }
     
@@ -66,18 +114,39 @@ class AuthService: ObservableObject {
             GIDSignIn.sharedInstance.signOut() // Ensure Google Sign In is also signed out
             self.userSession = nil
             self.currentUser = nil
+            self.isGuest = false // Reset guest state
         } catch {
-            print("DEBUG: Error signing out \(error.localizedDescription)")
+            // Error signing out
         }
     }
     
-    private func fetchUser() async {
+    func fetchUser() async {
         guard let uid = userSession?.uid else { return }
         
         do {
-            self.currentUser = try await FirebaseService.shared.fetchUser(userId: uid)
+            if let user = try await FirebaseService.shared.fetchUser(userId: uid) {
+                self.currentUser = user
+            } else {
+                print("User document not found for uid \(uid). Creating new profile...")
+                // Auto-create user profile
+                let email = userSession?.email ?? "no-email@swu.ac.th"
+                let displayName = email.components(separatedBy: "@").first ?? "User"
+                
+                let newUser = User(
+                    id: uid,
+                    email: email,
+                    role: .normal,
+                    displayName: displayName,
+                    profileImageUrl: nil
+                )
+                
+                try await FirebaseService.shared.saveUser(newUser)
+                self.currentUser = newUser
+                print("Created new profile for \(uid)")
+            }
         } catch {
-            print("DEBUG: Failed to fetch user \(error.localizedDescription)")
+            print("Error fetching/creating user: \(error.localizedDescription)")
+            self.errorMessage = error.localizedDescription
         }
     }
     
