@@ -105,10 +105,22 @@ struct EventDetailView: View {
                         
                         // Organizer (Simple)
                         HStack {
-                            Circle()
-                                .fill(Color.gray.opacity(0.2))
+                            if let organizer = organizerProfile, let imageUrl = organizer.profileImageUrl, !imageUrl.isEmpty {
+                                CachedAsyncImage(url: imageUrl) { image in
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    Circle().fill(Color.gray.opacity(0.2))
+                                }
                                 .frame(width: 50, height: 50)
-                                .overlay(Image(systemName: "person.fill").foregroundColor(.gray))
+                                .clipShape(Circle())
+                            } else {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .frame(width: 50, height: 50)
+                                    .overlay(Image(systemName: "person.fill").foregroundColor(.gray))
+                            }
                             
                             VStack(alignment: .leading) {
                                 Text("Organized by")
