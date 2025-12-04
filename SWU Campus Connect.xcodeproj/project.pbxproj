@@ -204,7 +204,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 85939F9B2EB39278006F4B80 /* Build configuration list for PBXProject "Campus Connect" */;
+			buildConfigurationList = 85939F9B2EB39278006F4B80 /* Build configuration list for PBXProject "SWU Campus Connect" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -420,11 +420,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = M58MND63UU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Final-CampusConnectApp-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "SWU Campus Connect";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "We need access to your calendar to add event reminders.";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "We need access to your calendar to add event reminders.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "We need access to your camera to scan QR codes and take photos.";
@@ -458,11 +460,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = M58MND63UU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Final-CampusConnectApp-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "SWU Campus Connect";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "We need access to your calendar to add event reminders.";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "We need access to your calendar to add event reminders.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "We need access to your camera to scan QR codes and take photos.";
@@ -577,7 +581,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		85939F9B2EB39278006F4B80 /* Build configuration list for PBXProject "Campus Connect" */ = {
+		85939F9B2EB39278006F4B80 /* Build configuration list for PBXProject "SWU Campus Connect" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				85939FBF2EB3927A006F4B80 /* Debug */,

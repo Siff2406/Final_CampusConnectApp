@@ -2,18 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCalendarsUsageDescription</key>
-	<string>We need access to your calendar to add event reminders.</string>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>instagram-stories</string>
-	</array>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>We need access to your calendar to add event reminders.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We need access to your photo library to upload profile pictures and event images.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>We need access to your camera to scan QR codes and take photos.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -24,6 +12,10 @@
 				<string>com.googleusercontent.apps.43791589088-qnpdvmhr5iu9f4an3l0h5rhg36rvprhg</string>
 			</array>
 		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>instagram-stories</string>
 	</array>
 </dict>
 </plist>
