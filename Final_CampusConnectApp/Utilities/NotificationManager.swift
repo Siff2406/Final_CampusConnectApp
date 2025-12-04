@@ -9,51 +9,96 @@ class NotificationManager: ObservableObject {
     @Published var notifications: [AppNotification] = []
     @Published var unreadCount: Int = 0
     
-    private var db = Firestore.firestore()
-    private var listener: ListenerRegistration?
+    // Use computed property to ensure we get the instance after configuration
+    private var db: Firestore {
+        Firestore.firestore()
+    }
+    private var listeners: [ListenerRegistration] = []
     
     private init() {}
     
     func startListening() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        // Listen to User's Notifications
-        _ = db.collection("notifications")
-            .whereField("userId", in: [userId, "ALL_USERS", "ADMIN"]) // Note: 'in' query limitation
+        // Remove existing listeners
+        listeners.forEach { $0.remove() }
+        listeners.removeAll()
         
-        // Simplified: Listen to specific user ID first (most common)
-        // For complex queries (OR logic), we might need separate listeners or client-side filtering.
-        // Let's stick to simple fetching for now but make it accessible globally.
+        // 1. Listen to Personal Notifications
+        let personalListener = db.collection("notifications")
+            .whereField("userId", isEqualTo: userId)
+            .addSnapshotListener { [weak self] snapshot, error in
+                self?.handleSnapshot(snapshot, type: "personal")
+            }
+        listeners.append(personalListener)
         
-        fetchNotifications()
-    }
-    
-    func fetchNotifications() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        // 2. Listen to Global Notifications
+        let globalListener = db.collection("notifications")
+            .whereField("userId", isEqualTo: "ALL_USERS")
+            .addSnapshotListener { [weak self] snapshot, error in
+                self?.handleSnapshot(snapshot, type: "global")
+            }
+        listeners.append(globalListener)
         
-        Task { @MainActor in
-            do {
-                // 1. Fetch personal
-                var all = try await FirebaseService.shared.fetchNotifications(userId: userId)
-                
-                // 2. Fetch Global
-                let global = try await FirebaseService.shared.fetchNotifications(userId: "ALL_USERS")
-                all.append(contentsOf: global)
-                
-                // 3. Fetch Admin (if applicable)
-                if let user = try? await FirebaseService.shared.fetchUser(userId: userId), user.role == .admin {
-                    let adminNotifs = try await FirebaseService.shared.fetchNotifications(userId: "ADMIN")
-                    all.append(contentsOf: adminNotifs)
+        // 3. Listen to Admin Notifications (Check role first or just listen if we assume admin check is done elsewhere. 
+        // For safety, let's fetch user role first or just listen if we know they are admin. 
+        // To keep it simple and fast, we'll listen, but security rules should prevent access if not admin.)
+        // We'll skip admin listener here for simplicity unless we're sure, to avoid permission errors.
+        // Or we can fetch user profile first.
+        
+        Task {
+            if let user = try? await FirebaseService.shared.fetchUser(userId: userId), user.role == .admin {
+                await MainActor.run {
+                    let adminListener = self.db.collection("notifications")
+                        .whereField("userId", isEqualTo: "ADMIN")
+                        .addSnapshotListener { [weak self] snapshot, error in
+                            self?.handleSnapshot(snapshot, type: "admin")
+                        }
+                    self.listeners.append(adminListener)
                 }
-                
-                // Sort and Update
-                self.notifications = all.sorted(by: { $0.createdAt > $1.createdAt })
-                self.unreadCount = self.notifications.filter { !$0.isRead }.count
-                
-            } catch {
-                print("Error fetching notifications: \(error)")
             }
         }
+    }
+    
+    func stopListening() {
+        listeners.forEach { $0.remove() }
+        listeners.removeAll()
+    }
+    
+    // Temporary storage to merge results
+    private var personalNotifs: [AppNotification] = []
+    private var globalNotifs: [AppNotification] = []
+    private var adminNotifs: [AppNotification] = []
+    
+    private func handleSnapshot(_ snapshot: QuerySnapshot?, type: String) {
+        guard let documents = snapshot?.documents else { return }
+        
+        let newNotifs = documents.compactMap { try? $0.data(as: AppNotification.self) }
+        
+        switch type {
+        case "personal": personalNotifs = newNotifs
+        case "global": globalNotifs = newNotifs
+        case "admin": adminNotifs = newNotifs
+        default: break
+        }
+        
+        mergeAndPublish()
+    }
+    
+    private func mergeAndPublish() {
+        var all = personalNotifs + globalNotifs + adminNotifs
+        // Sort by date descending
+        all.sort(by: { $0.createdAt > $1.createdAt })
+        
+        DispatchQueue.main.async {
+            self.notifications = all
+            self.unreadCount = all.filter { !$0.isRead }.count
+        }
+    }
+    
+    // Keep fetchNotifications for manual refresh if needed (but listeners are better)
+    func fetchNotifications() {
+        startListening()
     }
     
     func markAsRead(_ notification: AppNotification) {

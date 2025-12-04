@@ -11,9 +11,8 @@ class FirebaseService: ObservableObject {
     private let storage = Storage.storage()
     
     private init() {
-        let settings = FirestoreSettings()
-        settings.cacheSettings = PersistentCacheSettings()
-        db.settings = settings
+        // Default settings are sufficient. 
+        // Configuring settings after instance usage causes crashes.
     }
     // MARK: - Security & Privacy
     
@@ -130,6 +129,12 @@ class FirebaseService: ObservableObject {
     
     func deleteEvent(eventId: String) async throws {
         try await db.collection("events").document(eventId).delete()
+    }
+    
+    // Fetch single Event by ID
+    func fetchEvent(id: String) async throws -> Event? {
+        let doc = try await db.collection("events").document(id).getDocument()
+        return try? doc.data(as: Event.self)
     }
     
     // MARK: - Notifications
@@ -315,5 +320,13 @@ class FirebaseService: ObservableObject {
     
     func sendNotification(_ notification: AppNotification) async throws {
         try db.collection("notifications").document(notification.id ?? UUID().uuidString).setData(from: notification)
+    }
+    
+    // MARK: - Posts
+    
+    // Fetch single Post by ID
+    func fetchPost(id: String) async throws -> BlogPost? {
+        let doc = try await db.collection("posts").document(id).getDocument()
+        return try? doc.data(as: BlogPost.self)
     }
 }

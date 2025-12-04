@@ -1,17 +1,14 @@
 import SwiftUI
 
 struct NotificationsView: View {
-    @StateObject private var viewModel = NotificationsViewModel()
+    @StateObject private var notificationManager = NotificationManager.shared
     
     @State private var selectedEvent: Event?
     @State private var selectedPost: BlogPost?
     
     var body: some View {
         ScrollView {
-            if viewModel.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, minHeight: 200)
-            } else if viewModel.notifications.isEmpty {
+            if notificationManager.notifications.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "bell.slash")
                         .font(.largeTitle)
@@ -23,8 +20,8 @@ struct NotificationsView: View {
                 .padding(.top, 50)
             } else {
                 VStack(alignment: .leading, spacing: 24) {
-                    let today = viewModel.notifications.filter { Calendar.current.isDateInToday($0.createdAt) }
-                    let earlier = viewModel.notifications.filter { !Calendar.current.isDateInToday($0.createdAt) }
+                    let today = notificationManager.notifications.filter { Calendar.current.isDateInToday($0.createdAt) }
+                    let earlier = notificationManager.notifications.filter { !Calendar.current.isDateInToday($0.createdAt) }
                     
                     if !today.isEmpty {
                         VStack(alignment: .leading, spacing: 16) {
@@ -62,10 +59,11 @@ struct NotificationsView: View {
             }
         }
         .navigationTitle("Notifications")
+        .refreshable {
+            notificationManager.fetchNotifications() // This calls startListening which refreshes listeners
+        }
         .onAppear {
-            viewModel.fetchNotifications()
-            // If you want to mark all as read on appear, implement this in the view model and call it here.
-            // viewModel.markAllAsRead()
+            notificationManager.startListening()
         }
         .sheet(item: $selectedEvent) { event in
             EventDetailView(event: event)
@@ -76,17 +74,17 @@ struct NotificationsView: View {
     }
     
     private func handleNotificationTap(_ notification: AppNotification) {
-        // Mark as read (implement this in the VM if needed)
-        // e.g., viewModel.markAsRead(notification)
+        // Mark as read
+        notificationManager.markAsRead(notification)
         
         if let type = notification.relatedItemType, let id = notification.relatedItemId {
             Task {
                 if type == "event" {
-                    if let event = try? await viewModel.fetchEvent(id: id) {
+                    if let event = try? await FirebaseService.shared.fetchEvent(id: id) {
                         selectedEvent = event
                     }
                 } else if type == "post" {
-                    if let post = try? await viewModel.fetchPost(id: id) {
+                    if let post = try? await FirebaseService.shared.fetchPost(id: id) {
                         selectedPost = post
                     }
                 }
