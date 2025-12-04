@@ -30,7 +30,7 @@ class AddEventViewModel: ObservableObject {
         Task {
             do {
                 // Use provided URL or a default placeholder if empty
-                let finalImageUrl = imageUrlString.isEmpty ? "https://via.placeholder.com/300" : imageUrlString
+                let finalImageUrl = imageUrlString // If empty, it stays empty
                 
                 let event = Event(
                     id: UUID().uuidString,

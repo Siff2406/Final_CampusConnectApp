@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeFeedView: View {
     @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var notificationManager = NotificationManager.shared // Use Singleton
     
     var body: some View {
         NavigationView {
@@ -11,19 +12,28 @@ struct HomeFeedView: View {
                     Text("Campus Connect")
                         .font(.title)
                         .fontWeight(.black)
-                        .foregroundColor(.swuRed) // Changed to swuRed
+                        .foregroundColor(.swuRed)
                     
                     Spacer()
                     
                     NavigationLink(destination: NotificationsView()) {
-                        Image(systemName: "bell.badge")
-                            .font(.title3)
-                            .foregroundColor(.swuTextPrimary) // Changed to swuTextPrimary
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "bell")
+                                .font(.title3)
+                                .foregroundColor(.swuTextPrimary)
+                            
+                            if notificationManager.unreadCount > 0 {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 10, height: 10)
+                                    .offset(x: 2, y: -2)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 8)
-                .background(Color.swuBackground) // Changed to swuBackground
+                .background(Color.swuBackground)
                 
                 // Scrollable Content
                 ScrollView {
@@ -100,12 +110,15 @@ struct HomeFeedView: View {
                 }
                 .refreshable {
                     viewModel.fetchEvents()
+                    notificationManager.fetchNotifications() // Refresh notifications
                 }
+                .padding(.bottom, 100) // Avoid TabBar overlap
             }
             .navigationBarHidden(true)
             .background(Color.swuBackground) // Set background color
             .onAppear {
                 viewModel.fetchEvents()
+                notificationManager.fetchNotifications() // Fetch notifications
             }
         }
     }

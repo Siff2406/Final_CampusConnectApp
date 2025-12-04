@@ -17,10 +17,24 @@ struct CommentsView: View {
                     // Original Post
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Image(systemName: "person.circle.fill")
-                                .resizable()
-                                .frame(width: 40, height: 40)
-                                .foregroundColor(.gray)
+                            if let profileUrl = viewModel.authorProfile?.profileImageUrl {
+                                CachedAsyncImage(url: profileUrl) { image in
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
+                                } placeholder: {
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(width: 40, height: 40)
+                                }
+                            } else {
+                                Image(systemName: "person.circle.fill")
+                                    .resizable()
+                                    .frame(width: 40, height: 40)
+                                    .foregroundColor(.gray)
+                            }
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(viewModel.post.authorName)
@@ -120,6 +134,7 @@ struct CommentRow: View {
     @State private var showingDeleteAlert = false
     @State private var showingReportAlert = false
     @State private var showingBlockAlert = false
+    @State private var commenterProfile: User?
     
     var isCommentOwner: Bool {
         guard let currentUserId = AuthService.shared.userSession?.uid else { return false }
@@ -137,78 +152,107 @@ struct CommentRow: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(comment.authorName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+            HStack(alignment: .top, spacing: 12) {
+                // Profile Image
+                if let profileUrl = commenterProfile?.profileImageUrl {
+                    CachedAsyncImage(url: profileUrl) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 32, height: 32)
+                            .clipShape(Circle())
+                    } placeholder: {
+                        Circle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 32, height: 32)
+                    }
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                        .frame(width: 32, height: 32)
+                        .foregroundColor(.gray)
+                }
                 
-                Text(comment.timestamp.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-                
-                // Menu
-                Menu {
-                    if canDelete {
-                        Button(role: .destructive, action: {
-                            showingDeleteAlert = true
-                        }) {
-                            Label("Delete", systemImage: "trash")
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(comment.authorName)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        
+                        Text(comment.timestamp.formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        // Menu
+                        Menu {
+                            if canDelete {
+                                Button(role: .destructive, action: {
+                                    showingDeleteAlert = true
+                                }) {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            
+                            if !isCommentOwner {
+                                Button(action: {
+                                    showingReportAlert = true
+                                }) {
+                                    Label("Report", systemImage: "exclamationmark.bubble")
+                                }
+                                
+                                Button(role: .destructive, action: {
+                                    showingBlockAlert = true
+                                }) {
+                                    Label("Block User", systemImage: "hand.raised.slash")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .padding(8)
                         }
+                        .opacity(AuthService.shared.isGuest ? 0 : 1)
                     }
                     
-                    if !isCommentOwner {
-                        Button(action: {
-                            showingReportAlert = true
-                        }) {
-                            Label("Report", systemImage: "exclamationmark.bubble")
-                        }
-                        
-                        Button(role: .destructive, action: {
-                            showingBlockAlert = true
-                        }) {
-                            Label("Block User", systemImage: "hand.raised.slash")
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .padding(8)
+                    Text(comment.content)
+                        .font(.body)
+                        .foregroundColor(.primary)
                 }
-                .opacity(AuthService.shared.isGuest ? 0 : 1)
             }
-            
-            Text(comment.content)
-                .font(.body)
-                .foregroundColor(.primary)
-        }
-        .padding()
-        .background(Color.white)
-        .alert("Delete Comment", isPresented: $showingDeleteAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete", role: .destructive) {
-                viewModel.deleteComment(comment: comment)
+            .padding()
+            .background(Color.white)
+            .onAppear {
+                Task {
+                    commenterProfile = try? await FirebaseService.shared.fetchUserProfile(userId: comment.authorId)
+                }
             }
-        } message: {
-            Text("Are you sure you want to delete this comment?")
-        }
-        .alert("Report Comment", isPresented: $showingReportAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Report", role: .destructive) {
-                // Implement report logic in ViewModel if needed, or use generic report
+            .alert("Delete Comment", isPresented: $showingDeleteAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    viewModel.deleteComment(comment: comment)
+                }
+            } message: {
+                Text("Are you sure you want to delete this comment?")
             }
-        } message: {
-            Text("Are you sure you want to report this comment?")
-        }
-        .alert("Block User", isPresented: $showingBlockAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Block", role: .destructive) {
-                // Implement block logic
+            .alert("Report Comment", isPresented: $showingReportAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Report", role: .destructive) {
+                    // Implement report logic in ViewModel if needed, or use generic report
+                }
+            } message: {
+                Text("Are you sure you want to report this comment?")
             }
-        } message: {
-            Text("Are you sure you want to block this user?")
+            .alert("Block User", isPresented: $showingBlockAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Block", role: .destructive) {
+                    // Implement block logic
+                }
+            } message: {
+                Text("Are you sure you want to block this user?")
+            }
         }
     }
 }

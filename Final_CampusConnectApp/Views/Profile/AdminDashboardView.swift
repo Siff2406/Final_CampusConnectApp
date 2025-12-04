@@ -58,14 +58,27 @@ struct AdminDashboardView: View {
                         .padding(.horizontal)
                     
                     VStack(spacing: 12) {
-                        AdminToolButton(title: "Ban a User", icon: "slash.circle", color: .orange)
-                        AdminToolButton(title: "Hide a Post", icon: "eye.slash", color: .gray)
-                        AdminToolButton(title: "Send Announcement", icon: "megaphone", color: .red)
+                        NavigationLink(destination: UserManagementView()) {
+                            AdminToolButton(title: "Manage Users", icon: "person.2.badge.gearshape.fill", color: .blue)
+                        }
+                        
+                        NavigationLink(destination: BanUserView()) {
+                            AdminToolButton(title: "Ban a User", icon: "slash.circle", color: .orange)
+                        }
+                        
+                        NavigationLink(destination: ManagePostsView()) {
+                            AdminToolButton(title: "Hide a Post", icon: "eye.slash", color: .gray)
+                        }
+                        
+                        NavigationLink(destination: SendAnnouncementView()) {
+                            AdminToolButton(title: "Send Announcement", icon: "megaphone", color: .red)
+                        }
                     }
                     .padding(.horizontal)
                 }
             }
             .padding(.vertical)
+            .padding(.bottom, 100) // Avoid TabBar overlap
         }
         .navigationTitle("Moderator Dashboard")
         .navigationBarTitleDisplayMode(.inline)
@@ -103,22 +116,37 @@ struct PendingEventCard: View {
     let event: Event
     let onApprove: () -> Void
     let onReject: () -> Void
+    @State private var userProfile: User?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header: User & Time
             HStack {
-                Circle()
-                    .fill(Color.swuGrey.opacity(0.2)) // Changed to swuGrey
-                    .frame(width: 40, height: 40)
-                    .overlay(Image(systemName: "person.fill").foregroundColor(.swuGrey)) // Changed to swuGrey
+                if let profileUrl = userProfile?.profileImageUrl {
+                    CachedAsyncImage(url: profileUrl) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
+                    } placeholder: {
+                        Circle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 40, height: 40)
+                    }
+                } else {
+                    Circle()
+                        .fill(Color.swuGrey.opacity(0.2))
+                        .frame(width: 40, height: 40)
+                        .overlay(Image(systemName: "person.fill").foregroundColor(.swuGrey))
+                }
                 
                 VStack(alignment: .leading) {
-                    Text("User ID: \(event.createBy.prefix(6))...") // Placeholder name
+                    Text(userProfile?.displayName ?? "User ID: \(event.createBy.prefix(6))...")
                         .fontWeight(.semibold)
                     Text(timeAgo(from: event.createdAt))
                         .font(.caption)
-                        .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
+                        .foregroundColor(.swuTextSecondary)
                 }
                 Spacer()
                 Text(event.category.rawValue)
@@ -126,6 +154,11 @@ struct PendingEventCard: View {
                     .padding(6)
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(8)
+            }
+            .onAppear {
+                Task {
+                    userProfile = try? await FirebaseService.shared.fetchUserProfile(userId: event.createBy)
+                }
             }
             
             Divider()
@@ -206,16 +239,14 @@ struct AdminToolButton: View {
     let color: Color
     
     var body: some View {
-        Button(action: {}) {
-            HStack {
-                Image(systemName: icon)
-                Text(title)
-                Spacer()
-            }
-            .foregroundColor(.white)
-            .padding()
-            .background(color)
-            .cornerRadius(12)
+        HStack {
+            Image(systemName: icon)
+            Text(title)
+            Spacer()
         }
+        .foregroundColor(.white)
+        .padding()
+        .background(color)
+        .cornerRadius(12)
     }
 }

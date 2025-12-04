@@ -41,14 +41,27 @@ class HomeViewModel: ObservableObject {
     }
     
     private func filterEvents(searchText: String) {
+        let sortedEvents = sortEvents(events)
+        
         if searchText.isEmpty {
-            filteredEvents = events
+            filteredEvents = sortedEvents
         } else {
-            filteredEvents = events.filter { event in
+            filteredEvents = sortedEvents.filter { event in
                 event.title.localizedCaseInsensitiveContains(searchText) ||
                 event.description.localizedCaseInsensitiveContains(searchText) ||
                 event.location.localizedCaseInsensitiveContains(searchText)
             }
         }
+    }
+    
+    private func sortEvents(_ events: [Event]) -> [Event] {
+        let now = Date()
+        let activeEvents = events.filter { $0.eventDate >= now }
+            .sorted { $0.eventDate < $1.eventDate } // Soonest first
+        
+        let endedEvents = events.filter { $0.eventDate < now }
+            .sorted { $0.eventDate > $1.eventDate } // Recently ended first
+        
+        return activeEvents + endedEvents
     }
 }

@@ -3,6 +3,9 @@ import SwiftUI
 struct NotificationsView: View {
     @StateObject private var viewModel = NotificationsViewModel()
     
+    @State private var selectedEvent: Event?
+    @State private var selectedPost: BlogPost?
+    
     var body: some View {
         ScrollView {
             if viewModel.isLoading {
@@ -12,15 +15,14 @@ struct NotificationsView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "bell.slash")
                         .font(.largeTitle)
-                        .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
+                        .foregroundColor(.swuTextSecondary)
                     Text("No notifications yet")
-                        .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
+                        .foregroundColor(.swuTextSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 50)
             } else {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Group notifications by date (Today vs Earlier)
                     let today = viewModel.notifications.filter { Calendar.current.isDateInToday($0.createdAt) }
                     let earlier = viewModel.notifications.filter { !Calendar.current.isDateInToday($0.createdAt) }
                     
@@ -28,39 +30,67 @@ struct NotificationsView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Today")
                                 .font(.headline)
-                                .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
-                                .padding(.horizontal)
+                                .foregroundColor(.swuTextSecondary)
                             
                             ForEach(today) { notification in
                                 NotificationRow(notification: notification)
+                                    .onTapGesture {
+                                        handleNotificationTap(notification)
+                                    }
                             }
                         }
+                        .padding(.horizontal)
                     }
                     
                     if !earlier.isEmpty {
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Earlier")
                                 .font(.headline)
-                                .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
-                                .padding(.horizontal)
+                                .foregroundColor(.swuTextSecondary)
                             
                             ForEach(earlier) { notification in
                                 NotificationRow(notification: notification)
+                                    .onTapGesture {
+                                        handleNotificationTap(notification)
+                                    }
                             }
                         }
+                        .padding(.horizontal)
                     }
                 }
-                .padding(.vertical)
+                .padding(.top, 16)
             }
         }
         .navigationTitle("Notifications")
-        .navigationBarTitleDisplayMode(.inline)
-        .background(Color(.systemGroupedBackground))
         .onAppear {
             viewModel.fetchNotifications()
+            // If you want to mark all as read on appear, implement this in the view model and call it here.
+            // viewModel.markAllAsRead()
         }
-        .refreshable {
-            viewModel.fetchNotifications()
+        .sheet(item: $selectedEvent) { event in
+            EventDetailView(event: event)
+        }
+        .sheet(item: $selectedPost) { post in
+            CommentsView(post: post)
+        }
+    }
+    
+    private func handleNotificationTap(_ notification: AppNotification) {
+        // Mark as read (implement this in the VM if needed)
+        // e.g., viewModel.markAsRead(notification)
+        
+        if let type = notification.relatedItemType, let id = notification.relatedItemId {
+            Task {
+                if type == "event" {
+                    if let event = try? await viewModel.fetchEvent(id: id) {
+                        selectedEvent = event
+                    }
+                } else if type == "post" {
+                    if let post = try? await viewModel.fetchPost(id: id) {
+                        selectedPost = post
+                    }
+                }
+            }
         }
     }
 }
@@ -85,17 +115,17 @@ struct NotificationRow: View {
                 Text(notification.title)
                     .font(.subheadline)
                     .fontWeight(notification.isRead ? .regular : .semibold)
-                    .foregroundColor(.swuTextPrimary) // Changed to swuTextPrimary
+                    .foregroundColor(.swuTextPrimary)
                     .lineLimit(2)
                 
                 Text(notification.message)
                     .font(.caption)
-                    .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
+                    .foregroundColor(.swuTextSecondary)
                     .lineLimit(2)
                 
                 Text(timeAgo(from: notification.createdAt))
                     .font(.caption2)
-                    .foregroundColor(.swuTextSecondary) // Changed to swuTextSecondary
+                    .foregroundColor(.swuTextSecondary)
             }
             
             Spacer()
@@ -103,7 +133,7 @@ struct NotificationRow: View {
             // Unread Dot
             if !notification.isRead {
                 Circle()
-                    .fill(Color.swuRed) // Changed to swuRed
+                    .fill(Color.swuRed)
                     .frame(width: 8, height: 8)
                     .padding(.top, 8)
             }
@@ -111,11 +141,10 @@ struct NotificationRow: View {
         .padding()
         .background(Color.white)
         .cornerRadius(16)
-        .padding(.horizontal)
         .shadow(color: Color.black.opacity(0.03), radius: 5, x: 0, y: 2)
     }
     
-    var iconName: String {
+    private var iconName: String {
         switch notification.type {
         case .success: return "checkmark.circle.fill"
         case .error: return "xmark.circle.fill"
@@ -124,10 +153,10 @@ struct NotificationRow: View {
         }
     }
     
-    var iconColor: Color {
+    private var iconColor: Color {
         switch notification.type {
         case .success: return .green
-        case .error: return .swuRed // Changed to swuRed
+        case .error: return .swuRed
         case .warning: return .orange
         case .info: return .blue
         }

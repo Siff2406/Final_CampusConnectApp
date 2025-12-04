@@ -4,7 +4,12 @@ import FirebaseAuth
 struct EventCardView: View {
     let event: Event
     @State private var isInterested = false
-    @State private var interestedCount = 0
+    @State private var interestedCount: Int
+    
+    init(event: Event) {
+        self.event = event
+        _interestedCount = State(initialValue: event.interestedCount)
+    }
     
     var isEnded: Bool {
         event.eventDate < Date()
@@ -14,12 +19,24 @@ struct EventCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             // ... (Image Section remains same) ...
             ZStack(alignment: .topTrailing) {
-                CachedAsyncImage(url: event.imageUrl) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color.gray.opacity(0.2)
+                Group {
+                    if !event.imageUrl.isEmpty && !event.imageUrl.contains("placeholder.com") {
+                        CachedAsyncImage(url: event.imageUrl) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color.gray.opacity(0.2)
+                        }
+                    } else {
+                        // Default Image if no URL
+                        Image(systemName: "photo.on.rectangle.angled") // Or use a local asset like "AppLogo"
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .padding(40)
+                            .foregroundColor(.gray.opacity(0.5))
+                            .background(Color.gray.opacity(0.1))
+                    }
                 }
                 .frame(height: 180)
                 .clipped()

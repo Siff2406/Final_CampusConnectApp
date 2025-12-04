@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ProfileView: View {
-    @StateObject private var authService = AuthService.shared
+    @ObservedObject private var authService = AuthService.shared
     @StateObject private var viewModel = ProfileViewModel()
     @State private var showingImagePicker = false
     @State private var inputImage: UIImage?
@@ -43,6 +43,7 @@ struct ProfileView: View {
                                         .clipShape(Circle())
                                         .overlay(Circle().stroke(Color.white, lineWidth: 4))
                                         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 5)
+                                        .id(imageUrl) // Force refresh when URL changes
                                     } else {
                                         Image(systemName: "person.circle.fill")
                                             .resizable()
@@ -149,10 +150,11 @@ struct ProfileView: View {
                             .padding(.horizontal)
                             
                             // Version Info
-                            Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0")")
+                            // Version Info
+                            Text("Version 2.0")
                                 .font(.caption)
                                 .foregroundColor(.swuTextSecondary)
-                                .padding(.bottom, 100)
+                                .padding(.bottom, 120) // Avoid TabBar overlap
                         }
                     }
                     .sheet(isPresented: $showingImagePicker) {

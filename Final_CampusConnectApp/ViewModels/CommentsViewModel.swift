@@ -7,11 +7,26 @@ class CommentsViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     let post: BlogPost
+    @Published var authorProfile: User? // Store post author profile
     private let service = BlogService.shared
     
     init(post: BlogPost) {
         self.post = post
         fetchComments()
+        fetchAuthorProfile()
+    }
+    
+    private func fetchAuthorProfile() {
+        Task {
+            do {
+                let user = try await FirebaseService.shared.fetchUserProfile(userId: post.authorId)
+                await MainActor.run {
+                    self.authorProfile = user
+                }
+            } catch {
+                print("Error fetching author profile: \(error)")
+            }
+        }
     }
     
     func fetchComments() {

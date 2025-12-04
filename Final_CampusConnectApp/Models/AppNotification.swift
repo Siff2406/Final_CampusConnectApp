@@ -15,6 +15,8 @@ struct AppNotification: Identifiable, Codable {
     let title: String
     let message: String
     let type: NotificationType
-    let isRead: Bool
+    var isRead: Bool
     let createdAt: Date
+    var relatedItemId: String? // ID of the event or post
+    var relatedItemType: String? // "event" or "post"
 }

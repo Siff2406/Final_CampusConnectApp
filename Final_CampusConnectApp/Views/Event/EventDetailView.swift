@@ -10,6 +10,7 @@ struct EventDetailView: View {
     @State private var isLoadingStatus = true
     @State private var showDeleteAlert = false // For delete confirmation
     @State private var showGuestAlert = false // For guest alert
+    @State private var organizerProfile: User?
     
     // Calendar Alert States
     @State private var showCalendarAlert = false
@@ -24,16 +25,30 @@ struct EventDetailView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Header Image
                     GeometryReader { geometry in
-                        CachedAsyncImage(url: event.imageUrl) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: geometry.size.width, height: 300)
-                                .clipped()
-                        } placeholder: {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(width: geometry.size.width, height: 300)
+                        if !event.imageUrl.isEmpty && !event.imageUrl.contains("placeholder.com") {
+                            CachedAsyncImage(url: event.imageUrl) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geometry.size.width, height: 300)
+                                    .clipped()
+                            } placeholder: {
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .frame(width: geometry.size.width, height: 300)
+                            }
+                        } else {
+                            // Default Image
+                            ZStack {
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.1))
+                                Image(systemName: "photo.on.rectangle.angled")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 100)
+                                    .foregroundColor(.gray.opacity(0.5))
+                            }
+                            .frame(width: geometry.size.width, height: 300)
                         }
                     }
                     .frame(height: 300)
@@ -99,10 +114,19 @@ struct EventDetailView: View {
                                 Text("Organized by")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                Text("User ID: \(event.createBy.prefix(6))...")
-                                    .font(.headline)
+                                if let organizer = organizerProfile {
+                                    Text(organizer.displayName)
+                                        .font(.headline)
+                                } else {
+                                    Text("User ID: \(event.createBy.prefix(6))...")
+                                        .font(.headline)
+                                }
                             }
                         }
+                        .onAppear {
+                            fetchOrganizerProfile()
+                        }
+
                         
                         // Padding for bottom bar
                         Color.clear.frame(height: 20)
@@ -259,6 +283,16 @@ struct EventDetailView: View {
                 print("Error checking join status: \(error)")
             }
             isLoadingStatus = false
+        }
+    }
+    
+    private func fetchOrganizerProfile() {
+        Task {
+            do {
+                organizerProfile = try await FirebaseService.shared.fetchUserProfile(userId: event.createBy)
+            } catch {
+                print("Error fetching organizer profile: \(error)")
+            }
         }
     }
     

@@ -31,10 +31,25 @@ struct BlogFeedView: View {
                             // Create Post Box
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack(alignment: .top, spacing: 12) {
-                                    Image(systemName: "person.circle.fill")
-                                        .resizable()
-                                        .frame(width: 40, height: 40)
-                                        .foregroundColor(.gray)
+                                    if let profileUrl = AuthService.shared.currentUser?.profileImageUrl,
+                                       !profileUrl.isEmpty {
+                                        CachedAsyncImage(url: profileUrl) { image in
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(width: 40, height: 40)
+                                                .clipShape(Circle())
+                                        } placeholder: {
+                                            Circle()
+                                                .fill(Color.gray.opacity(0.2))
+                                                .frame(width: 40, height: 40)
+                                        }
+                                    } else {
+                                        Image(systemName: "person.circle.fill")
+                                            .resizable()
+                                            .frame(width: 40, height: 40)
+                                            .foregroundColor(.gray)
+                                    }
                                     
                                     VStack(alignment: .leading, spacing: 8) {
                                         TextField("What's on your mind?", text: $newPostContent, axis: .vertical)
@@ -82,7 +97,7 @@ struct BlogFeedView: View {
                                 }
                             }
                         }
-                        .padding(.bottom, 100)
+                        .padding(.bottom, 100) // Avoid TabBar overlap
                     }
                     .refreshable {
                         viewModel.fetchPosts()
@@ -115,7 +130,8 @@ struct BlogPostCard: View {
     @State private var showingDeleteAlert = false
     @State private var showingReportAlert = false
     @State private var showingBlockAlert = false
-    
+    @State private var authorProfile: User?
+
     var isLiked: Bool {
         guard let userId = AuthService.shared.currentUser?.id else { return false }
         return post.likedBy.contains(userId)
@@ -134,10 +150,24 @@ struct BlogPostCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
             HStack {
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .frame(width: 40, height: 40)
-                    .foregroundColor(.gray)
+                if let profileUrl = authorProfile?.profileImageUrl {
+                    CachedAsyncImage(url: profileUrl) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
+                    } placeholder: {
+                        Circle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 40, height: 40)
+                    }
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                        .frame(width: 40, height: 40)
+                        .foregroundColor(.gray)
+                }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(post.authorName)
@@ -278,6 +308,11 @@ struct BlogPostCard: View {
                 )
             }
             .presentationDetents([.medium])
+        }
+        .onAppear {
+            Task {
+                authorProfile = try? await FirebaseService.shared.fetchUserProfile(userId: post.authorId)
+            }
         }
     }
 }

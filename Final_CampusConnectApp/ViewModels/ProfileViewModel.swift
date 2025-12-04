@@ -26,6 +26,9 @@ class ProfileViewModel: ObservableObject {
                 // 3. Update Local State
                 AuthService.shared.currentUser = updatedUser
                 
+                // Force fetch from server to be 100% sure
+                await AuthService.shared.fetchUser()
+                
                 isLoading = false
                 isSuccess = true // Trigger success alert
             } catch {

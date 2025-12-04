@@ -19,7 +19,7 @@ struct MyEventsView: View {
                         Text("No events yet")
                             .font(.title2)
                             .fontWeight(.bold)
-                        Text("Events you join or create will appear here.")
+                        Text("Events you join will appear here.")
                             .foregroundColor(.secondary)
                     }
                 } else {
@@ -43,7 +43,7 @@ struct MyEventsView: View {
                             }
                         }
                         .padding()
-                        .padding(.bottom, 80) // Clear tab bar
+                        .padding(.bottom, 100) // Clear tab bar
                     }
                 }
             }

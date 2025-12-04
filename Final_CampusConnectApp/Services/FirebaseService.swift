@@ -62,46 +62,64 @@ class FirebaseService: ObservableObject {
         }
     }
     
-    func fetchJoinedEvents(userId: String) async throws -> [Event] {
-        // 1. Find all participant documents for this user across all events
-        // Note: This requires a Collection Group Index on 'participants' collection for field 'userId'
-        let snapshot = try await db.collectionGroup("participants")
-            .whereField("userId", isEqualTo: userId)
-            .getDocuments()
-        
-        var events: [Event] = []
-        
-        // 2. Get the parent Event document for each participation
-        for doc in snapshot.documents {
-            // The parent of 'participants' collection is the 'events' document
-            if let eventRef = doc.reference.parent.parent {
-                let eventDoc = try await eventRef.getDocument()
-                if let event = try? eventDoc.data(as: Event.self) {
-                    events.append(event)
-                }
-            }
-        }
-        
-        // Sort by date (newest first)
-        return events.sorted(by: { $0.eventDate > $1.eventDate })
-    }
-    
     func addEvent(_ event: Event) async throws {
         try db.collection("events").document(event.id).setData(from: event)
+        
+        // If event is pending, notify admins
+        // If event is pending, notify admins
+        if event.status == .pending {
+            let notificationId = UUID().uuidString
+            let notification = AppNotification(
+                id: notificationId,
+                userId: "ADMIN", // Special ID for admin notifications
+                title: "New Event Request",
+                message: "A new event '\(event.title)' is waiting for approval.",
+                type: .info,
+                isRead: false,
+                createdAt: Date(),
+                relatedItemId: event.id,
+                relatedItemType: "event"
+            )
+            
+            try db.collection("notifications").document(notificationId).setData(from: notification)
+        }
     }
     
     func uploadImage(_ image: UIImage) async throws -> String {
-        guard let imageData = image.jpegData(compressionQuality: 0.5) else {
+        // 1. Resize image to avoid Firestore 1MB limit (Max 500px width)
+        let resizedImage = resizeImage(image: image, targetSize: CGSize(width: 500, height: 500))
+        
+        // 2. Compress to JPEG
+        guard let imageData = resizedImage.jpegData(compressionQuality: 0.6) else {
             throw NSError(domain: "ImageError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image to data"])
         }
         
-        let filename = UUID().uuidString + ".jpg"
-        let storageRef = storage.reference().child("event_images/\(filename)")
+        // 3. Convert to Base64 String
+        let base64String = imageData.base64EncodedString()
+        return "data:image/jpeg;base64,\(base64String)"
+    }
+    
+    // Helper to resize image
+    private func resizeImage(image: UIImage, targetSize: CGSize) -> UIImage {
+        let size = image.size
+        let widthRatio  = targetSize.width  / size.width
+        let heightRatio = targetSize.height / size.height
+        let newSize: CGSize
         
-        let _ = try await storageRef.putDataAsync(imageData)
-        let downloadURL = try await storageRef.downloadURL()
+        if(widthRatio > heightRatio) {
+            newSize = CGSize(width: size.width * heightRatio, height: size.height * heightRatio)
+        } else {
+            newSize = CGSize(width: size.width * widthRatio,  height: size.height * widthRatio)
+        }
         
-        return downloadURL.absoluteString
+        let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
+        
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+        image.draw(in: rect)
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return newImage ?? image
     }
     
     func updateEventStatus(eventId: String, status: EventStatus) async throws {
@@ -146,8 +164,39 @@ class FirebaseService: ObservableObject {
             "joinedAt": Timestamp(date: Date()),
             "details": details
         ]
-        // Add to 'participants' subcollection
-        try await db.collection("events").document(eventId).collection("participants").document(userId).setData(data)
+        
+        let batch = db.batch()
+        
+        // 1. Add to 'participants' subcollection in Event
+        let participantRef = db.collection("events").document(eventId).collection("participants").document(userId)
+        batch.setData(data, forDocument: participantRef)
+        
+        // 2. Add to 'joinedEvents' subcollection in User (for My Events)
+        let userEventRef = db.collection("users").document(userId).collection("joinedEvents").document(eventId)
+        batch.setData(["joinedAt": Timestamp(date: Date())], forDocument: userEventRef)
+        
+        try await batch.commit()
+    }
+    
+    func fetchJoinedEvents(userId: String) async throws -> [Event] {
+        // 1. Get all event IDs the user has joined
+        let snapshot = try await db.collection("users").document(userId).collection("joinedEvents").getDocuments()
+        let eventIds = snapshot.documents.map { $0.documentID }
+        
+        if eventIds.isEmpty { return [] }
+        
+        // 2. Fetch actual event data
+        var events: [Event] = []
+        
+        // Fetch sequentially to avoid actor isolation issues and complexity
+        for eventId in eventIds {
+            if let doc = try? await db.collection("events").document(eventId).getDocument(),
+               let event = try? doc.data(as: Event.self) {
+                events.append(event)
+            }
+        }
+        
+        return events.sorted(by: { $0.eventDate < $1.eventDate })
     }
     
     func checkIfJoined(eventId: String, userId: String) async throws -> Bool {
@@ -156,14 +205,24 @@ class FirebaseService: ObservableObject {
     }
     
     func toggleInterest(eventId: String, userId: String) async throws -> Bool {
-        let docRef = db.collection("events").document(eventId).collection("interested").document(userId)
+        let eventRef = db.collection("events").document(eventId)
+        let docRef = eventRef.collection("interested").document(userId)
+        
         let doc = try await docRef.getDocument()
         
         if doc.exists {
             try await docRef.delete()
+            // Decrement count
+            try await eventRef.updateData([
+                "interestedCount": FieldValue.increment(Int64(-1))
+            ])
             return false // No longer interested
         } else {
             try await docRef.setData(["interestedAt": Timestamp(date: Date())])
+            // Increment count
+            try await eventRef.updateData([
+                "interestedCount": FieldValue.increment(Int64(1))
+            ])
             return true // Now interested
         }
     }
@@ -200,6 +259,11 @@ class FirebaseService: ObservableObject {
         return snapshot.count
     }
     
+    func fetchUserProfile(userId: String) async throws -> User? {
+        let snapshot = try await db.collection("users").document(userId).getDocument()
+        return try? snapshot.data(as: User.self)
+    }
+    
     // MARK: - Report & Block
     func reportPost(postId: String, reason: String) async throws {
         let reportData: [String: Any] = [
@@ -218,5 +282,38 @@ class FirebaseService: ObservableObject {
         try await db.collection("users").document(currentUserId).collection("blockedUsers").document(userIdToBlock).setData([
             "blockedAt": Timestamp(date: Date())
         ])
+    }
+    
+    // MARK: - User Management (Admin)
+    func searchUsers(query: String) async throws -> [User] {
+        // Search by Email (for Manage Users)
+        let snapshot = try await db.collection("users")
+            .whereField("email", isGreaterThanOrEqualTo: query)
+            .whereField("email", isLessThan: query + "\u{f8ff}")
+            .limit(to: 20)
+            .getDocuments()
+            
+        return snapshot.documents.compactMap { try? $0.data(as: User.self) }
+    }
+    
+    func searchUsersByName(query: String) async throws -> [User] {
+        // Search by DisplayName (for Ban User)
+        let snapshot = try await db.collection("users")
+            .whereField("displayName", isGreaterThanOrEqualTo: query)
+            .whereField("displayName", isLessThan: query + "\u{f8ff}")
+            .limit(to: 20)
+            .getDocuments()
+            
+        return snapshot.documents.compactMap { try? $0.data(as: User.self) }
+    }
+    
+    func updateUserRole(userId: String, role: UserRole) async throws {
+        try await db.collection("users").document(userId).updateData([
+            "role": role.rawValue
+        ])
+    }
+    
+    func sendNotification(_ notification: AppNotification) async throws {
+        try db.collection("notifications").document(notification.id ?? UUID().uuidString).setData(from: notification)
     }
 }

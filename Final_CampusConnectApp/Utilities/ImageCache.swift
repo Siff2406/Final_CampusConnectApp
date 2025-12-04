@@ -53,7 +53,7 @@ class ImageLoader: ObservableObject {
                     self.isLoading = false
                 }
             } catch {
-                print("Error loading image: \(error.localizedDescription)")
+                print("Error loading image: \(urlString) -> \(error.localizedDescription)")
                 await MainActor.run {
                     self.isLoading = false
                 }

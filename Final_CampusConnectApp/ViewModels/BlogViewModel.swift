@@ -42,10 +42,25 @@ class BlogViewModel: ObservableObject {
     func toggleLike(post: BlogPost) {
         guard let currentUser = AuthService.shared.currentUser else { return }
         
+        // Optimistic Update
+        if let index = posts.firstIndex(where: { $0.id == post.id }) {
+            var updatedPost = posts[index]
+            if updatedPost.likedBy.contains(currentUser.id) {
+                updatedPost.likedBy.removeAll { $0 == currentUser.id }
+                updatedPost.likes -= 1
+            } else {
+                updatedPost.likedBy.append(currentUser.id)
+                updatedPost.likes += 1
+            }
+            posts[index] = updatedPost
+        }
+        
         service.toggleLike(post: post, userId: currentUser.id) { [weak self] error in
             if let error = error {
                 DispatchQueue.main.async {
                     self?.errorMessage = error.localizedDescription
+                    // Revert if error (Optional: implement revert logic here)
+                    self?.fetchPosts() // Sync with server
                 }
             }
         }

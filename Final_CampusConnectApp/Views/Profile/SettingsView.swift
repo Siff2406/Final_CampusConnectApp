@@ -16,10 +16,18 @@ struct SettingsView: View {
             
             Section(header: Text("Account")) {
                 NavigationLink("Privacy Policy") {
-                    Text("Privacy Policy Content...")
+                    ScrollView {
+                        Text("Privacy Policy\n\nThis application collects user data such as email and profile information solely for the purpose of authentication and event management. We do not share your data with third parties.")
+                            .padding()
+                    }
+                    .navigationTitle("Privacy Policy")
                 }
                 NavigationLink("Terms of Service") {
-                    Text("Terms of Service Content...")
+                    ScrollView {
+                        Text("Terms of Service\n\nBy using Campus Connect, you agree to behave respectfully towards other members of the SWU community. Inappropriate content may be removed and users may be banned.")
+                            .padding()
+                    }
+                    .navigationTitle("Terms of Service")
                 }
             }
             
