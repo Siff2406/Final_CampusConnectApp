@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>43791589088-9g2pc90jjpm4kkp003uj8l8ag3dv4m1e.apps.googleusercontent.com</string>
+	<string>43791589088-qnpdvmhr5iu9f4an3l0h5rhg36rvprhg.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.43791589088-9g2pc90jjpm4kkp003uj8l8ag3dv4m1e</string>
+	<string>com.googleusercontent.apps.43791589088-qnpdvmhr5iu9f4an3l0h5rhg36rvprhg</string>
 	<key>API_KEY</key>
 	<string>AIzaSyDq7ysCqL3yn_TBjBEXeEHGvVioFYLtSHA</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,7 +13,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.final.CampusConnect</string>
+	<string>siff.Final-CampusConnectApp</string>
 	<key>PROJECT_ID</key>
 	<string>campusconnectapp-84109</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:43791589088:ios:d241bbb66f30c2ceb23a85</string>
+	<string>1:43791589088:ios:0e7a961d96087810b23a85</string>
 </dict>
 </plist>
